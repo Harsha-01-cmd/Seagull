@@ -89,6 +89,51 @@ async def predict_shortlist_file(
         "suggestions": suggestions
     }
 
+@app.post("/parse-resume")
+async def parse_resume(resume: UploadFile = File(...)):
+    content = await resume.read()
+    if resume.filename.endswith(".pdf"):
+        text = extract_text_from_pdf(content)
+    else:
+        text = content.decode("utf-8", errors="ignore")
+    return {"text": text}
+
+@app.post("/predict-shortlist-text")
+async def predict_shortlist_text(
+    resume_text: str = Form(...), 
+    job_description: str = Form(...)
+):
+    # Analysis Logic (Duplicated for simplicity, could refactor)
+    jd_lower = job_description.lower()
+    resume_lower = resume_text.lower()
+    
+    # Extract keywords from JD
+    common_tech = ["python", "javascript", "react", "node", "sql", "aws", "docker", "kubernetes", "system design", "java", "c++", "typescript", "git"]
+    found_keywords = []
+    missing_keywords = []
+    target_keywords = [k for k in common_tech if k in jd_lower]
+    
+    for k in target_keywords:
+        if k in resume_lower: found_keywords.append(k)
+        else: missing_keywords.append(k)
+            
+    if not target_keywords: match_ratio = 0.5 
+    else: match_ratio = len(found_keywords) / len(target_keywords)
+    
+    probability = min(0.1 + (match_ratio * 0.8), 0.98)
+    
+    suggestions = []
+    if missing_keywords: suggestions.append(f"Missing skills: {', '.join(missing_keywords[:3])}.")
+    if len(resume_text) < 500: suggestions.append("Resume is too short.")
+    if probability < 0.5: suggestions.append("Low match score.")
+
+    return {
+        "shortlist_probability": round(probability, 2),
+        "ats_score": int(probability * 100),
+        "missing_keywords": missing_keywords,
+        "suggestions": suggestions
+    }
+
 @app.post("/trigger-scrape")
 def trigger_scrape():
     jobs = scrape_jobs(["remote"])

@@ -15,9 +15,12 @@ app.use(cors({ origin: 'http://localhost:3000', credentials: true }));
 app.use(express.json());
 
 // Database
-mongoose.connect(process.env.MONGO_URI)
+mongoose.connect(process.env.MONGO_URI, {
+    serverSelectionTimeoutMS: 5000,
+    socketTimeoutMS: 45000,
+})
     .then(() => console.log('MongoDB Connected'))
-    .catch(err => console.error(err));
+    .catch(err => console.error('MongoDB Config Error:', err));
 
 // Auth Setup
 app.use(session({ secret: 'secret_key', resave: false, saveUninitialized: false }));
@@ -58,8 +61,10 @@ passport.use(new GitHubStrategy({
 // Routes
 const jobRoutes = require('./routes/jobs');
 const applicationRoutes = require('./routes/applications');
+const userRoutes = require('./routes/user');
 app.use('/api/jobs', jobRoutes);
 app.use('/api/applications', applicationRoutes);
+app.use('/api/user', userRoutes);
 app.get('/', (req, res) => res.send('Job Portal API Running'));
 
 // Auth Routes
