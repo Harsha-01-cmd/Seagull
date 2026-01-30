@@ -6,8 +6,8 @@ import Navbar from "@/components/Navbar";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "JobPortal - Find Your Dream Engineering Job",
-  description: "Aggregated jobs from Google, Meta, Microsoft and more.",
+  title: "Seagull - AI Powered Job Portal",
+  description: "Find Your Dream Engineering Job with Smart Resume Analysis",
 };
 
 export default function RootLayout({
