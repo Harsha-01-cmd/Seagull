@@ -71,7 +71,7 @@ export default function Dashboard() {
     }, []);
 
     if (loading) return <div className="p-10 text-center">Loading Dashboard...</div>;
-    if (!user) return <div className="p-10 text-center">Please <a href="http://localhost:5000/auth/github" className="text-primary underline">Login</a> to view dashboard.</div>;
+    if (!user) return <div className="p-10 text-center">Please <a href={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/auth/github`} className="text-primary underline">Login</a> to view dashboard.</div>;
 
     const getStatusColor = (status: string) => {
         switch (status) {

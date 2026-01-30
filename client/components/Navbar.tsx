@@ -38,12 +38,12 @@ export default function Navbar() {
                         {user ? (
                             <>
                                 <span className="text-sm text-gray-700">Hi, {(user as any).username}</span>
-                                <Link href="http://localhost:5000/auth/logout" className="bg-red-500 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-red-600 transition-colors">
+                                <Link href={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/auth/logout`} className="bg-red-500 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-red-600 transition-colors">
                                     Logout
                                 </Link>
                             </>
                         ) : (
-                            <Link href="http://localhost:5000/auth/github" className="bg-gray-900 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-800 transition-colors">
+                            <Link href={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/auth/github`} className="bg-gray-900 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-800 transition-colors">
                                 Sign in with GitHub
                             </Link>
                         )}

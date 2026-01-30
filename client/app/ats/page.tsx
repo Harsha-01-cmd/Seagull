@@ -48,13 +48,13 @@ export default function ATSPage() {
             if (useProfileResume && userProfile?.resumeText) {
                 // Use Text Endpoint
                 formData.append('resume_text', userProfile.resumeText);
-                res = await axios.post('http://localhost:8000/predict-shortlist-text', formData, {
+                res = await axios.post(`${process.env.NEXT_PUBLIC_WORKER_URL || 'http://localhost:8000'}/predict-shortlist-text`, formData, {
                     headers: { 'Content-Type': 'multipart/form-data' }
                 });
             } else if (file) {
                 // Use File Endpoint
                 formData.append('resume', file);
-                res = await axios.post('http://localhost:8000/predict-shortlist-file', formData, {
+                res = await axios.post(`${process.env.NEXT_PUBLIC_WORKER_URL || 'http://localhost:8000'}/predict-shortlist-file`, formData, {
                     headers: { 'Content-Type': 'multipart/form-data' }
                 });
             }
