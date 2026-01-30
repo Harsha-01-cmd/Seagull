@@ -28,7 +28,18 @@ mongoose.connect(process.env.MONGO_URI as string, {
     .catch((err: Error) => console.error('MongoDB Config Error:', err));
 
 // Auth Setup
-app.use(session({ secret: 'secret_key', resave: false, saveUninitialized: false }));
+// Auth Setup
+app.set('trust proxy', 1); // Trust first proxy (Render/Vercel)
+app.use(session({
+    secret: process.env.SESSION_SECRET || 'secret_key',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        secure: process.env.NODE_ENV === 'production', // Secure in production
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // None for cross-site
+        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    }
+}));
 app.use(passport.initialize());
 app.use(passport.session());
 
