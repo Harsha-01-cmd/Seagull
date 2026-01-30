@@ -1,16 +1,75 @@
 version: '3.8'
+
 services:
+  # Database
   mongodb:
     image: mongo:latest
+    container_name: seagull_mongo
     ports:
       - "27017:27017"
     volumes:
       - mongodb_data:/data/db
+    networks:
+      - seagull_net
 
+  # Cache
   redis:
     image: redis:alpine
+    container_name: seagull_redis
     ports:
       - "6379:6379"
+    networks:
+      - seagull_net
+
+  # Backend Server
+  server:
+    build: ./server
+    container_name: seagull_server
+    ports:
+      - "5000:5000"
+    environment:
+      - PORT=5000
+      - MONGO_URI=mongodb://mongodb:27017/seagull
+      - REDIS_URL=redis://redis:6379
+      - CLIENT_URL=http://localhost:3000
+    depends_on:
+      - mongodb
+      - redis
+    networks:
+      - seagull_net
+    env_file:
+      - ./server/.env
+
+  # Python Worker
+  worker:
+    build: ./worker
+    container_name: seagull_worker
+    ports:
+      - "8000:8000"
+    environment:
+      - SERVER_URL=http://server:5000
+    depends_on:
+      - server
+    networks:
+      - seagull_net
+
+  # Frontend Client
+  client:
+    build: ./client
+    container_name: seagull_client
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+    depends_on:
+      - server
+    networks:
+      - seagull_net
 
 volumes:
   mongodb_data:
+
+
+networks:
+  seagull_net:
+    driver: bridge

@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
+import os
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List
 import pdfplumber
@@ -39,55 +40,12 @@ async def predict_shortlist_file(
     if resume.filename.endswith(".pdf"):
         resume_text = extract_text_from_pdf(content)
     else:
-        # Fallback for text/other
-        resume_text = content.decode("utf-8", errors="ignore")
+        try:
+            resume_text = content.decode("utf-8", errors="ignore")
+        except:
+            resume_text = ""
 
-    # Analysis Logic
-    jd_lower = job_description.lower()
-    resume_lower = resume_text.lower()
-    
-    # Extract keywords from JD (Simple frequency based or hardcoded common tech)
-    common_tech = ["python", "javascript", "react", "node", "sql", "aws", "docker", "kubernetes", "system design", "java", "c++", "typescript", "git"]
-    
-    found_keywords = []
-    missing_keywords = []
-    
-    # Check which common keywords are in JD
-    target_keywords = [k for k in common_tech if k in jd_lower]
-    
-    # Check match against Resume
-    for k in target_keywords:
-        if k in resume_lower:
-            found_keywords.append(k)
-        else:
-            missing_keywords.append(k)
-            
-    # Calculate Score
-    if not target_keywords: 
-        # Fallback if no known keywords in JD
-        match_ratio = 0.5 
-    else:
-        match_ratio = len(found_keywords) / len(target_keywords)
-    
-    probability = min(0.1 + (match_ratio * 0.8), 0.98)
-    
-    # Generate Suggestions
-    suggestions = []
-    if missing_keywords:
-        suggestions.append(f"Consider adding these skills found in the JD: {', '.join(missing_keywords[:3])}.")
-    if len(resume_text) < 500:
-        suggestions.append("Your resume seems short. Elaborate on your projects and experience.")
-    if "quantified" not in resume_lower and "%" not in resume_lower:
-        suggestions.append("Try to quantify your achievements (e.g., 'Improved performance by 20%').")
-    if probability < 0.5:
-        suggestions.append("The formatting might be preventing parsing, or the skill gap is significant.")
-
-    return {
-        "shortlist_probability": round(probability, 2),
-        "ats_score": int(probability * 100),
-        "missing_keywords": missing_keywords,
-        "suggestions": suggestions
-    }
+    return analyze_resume(resume_text, job_description)
 
 @app.post("/parse-resume")
 async def parse_resume(resume: UploadFile = File(...)):
@@ -103,36 +61,77 @@ async def predict_shortlist_text(
     resume_text: str = Form(...), 
     job_description: str = Form(...)
 ):
-    # Analysis Logic (Duplicated for simplicity, could refactor)
-    jd_lower = job_description.lower()
-    resume_lower = resume_text.lower()
-    
-    # Extract keywords from JD
-    common_tech = ["python", "javascript", "react", "node", "sql", "aws", "docker", "kubernetes", "system design", "java", "c++", "typescript", "git"]
-    found_keywords = []
-    missing_keywords = []
-    target_keywords = [k for k in common_tech if k in jd_lower]
-    
-    for k in target_keywords:
-        if k in resume_lower: found_keywords.append(k)
-        else: missing_keywords.append(k)
+    return analyze_resume(resume_text, job_description)
+
+def analyze_resume(resume_text: str, job_description: str):
+    try:
+        # Load Spacy Model (Cached)
+        import spacy
+        from sklearn.feature_extraction.text import TfidfVectorizer
+        from sklearn.metrics.pairwise import cosine_similarity
+        
+        try:
+            nlp = spacy.load("en_core_web_sm")
+        except:
+            # Fallback if model not found (dev env without download)
+            # In production Docker, it should be there.
+            import spacy.cli
+            spacy.cli.download("en_core_web_sm")
+            nlp = spacy.load("en_core_web_sm")
+        
+        # 1. Cosine Similarity (Content Match)
+        if not resume_text or not job_description:
+            return {
+                "shortlist_probability": 0.0,
+                "ats_score": 0,
+                "missing_keywords": [],
+                "suggestions": ["Please provide both resume and job description."]
+            }
+
+        documents = [resume_text, job_description]
+        tfidf = TfidfVectorizer(stop_words='english')
+        tfidf_matrix = tfidf.fit_transform(documents)
+        similarity_score = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])[0][0]
+        
+        # 2. Skill Extraction (Simple Rule-based + NER)
+        doc_jd = nlp(job_description)
+        doc_resume = nlp(resume_text)
+        
+        common_tech = {"python", "javascript", "react", "node", "sql", "aws", "docker", "kubernetes", "system design", "java", "c++", "typescript", "git", "communication", "leadership", "agile", "scrum", "machine learning", "tensorflow", "pytorch", "pandas", "numpy", "html", "css"}
+        
+        jd_tokens = {token.lemma_.lower() for token in doc_jd if not token.is_stop and token.is_alpha}
+        resume_tokens = {token.lemma_.lower() for token in doc_resume if not token.is_stop and token.is_alpha}
+        
+        target_skills = {k for k in jd_tokens if k in common_tech}
+        found_skills = {k for k in resume_tokens if k in target_skills}
+        missing_skills = list(target_skills - found_skills)
+        
+        keyword_match_ratio = len(found_skills) / len(target_skills) if target_skills else 1.0
+        
+        final_probability = (similarity_score * 0.7) + (keyword_match_ratio * 0.3)
+        final_probability = min(final_probability, 0.99)
+        
+        suggestions = []
+        if missing_skills:
+            suggestions.append(f"Missing key skills: {', '.join(missing_skills[:5])}.")
+        if similarity_score < 0.3:
+            suggestions.append("The phrasing of your resume is very different from the job description. Try to mirror the language used in the JD.")
+        if len(resume_text) < 500:
+            suggestions.append("Your resume seems short. Elaborate on your projects.")
             
-    if not target_keywords: match_ratio = 0.5 
-    else: match_ratio = len(found_keywords) / len(target_keywords)
-    
-    probability = min(0.1 + (match_ratio * 0.8), 0.98)
-    
-    suggestions = []
-    if missing_keywords: suggestions.append(f"Missing skills: {', '.join(missing_keywords[:3])}.")
-    if len(resume_text) < 500: suggestions.append("Resume is too short.")
-    if probability < 0.5: suggestions.append("Low match score.")
+    except Exception as e:
+        print(f"Analysis Error: {e}")
+        final_probability = 0.5
+        missing_skills = []
+        suggestions = ["Error analyzing resume. Please ensure it is a valid text/PDF."]
 
     return {
-        "shortlist_probability": round(probability, 2),
-        "ats_score": int(probability * 100),
-        "missing_keywords": missing_keywords,
+        "shortlist_probability": round(float(final_probability), 2),
+        "ats_score": int(final_probability * 100),
+        "missing_keywords": missing_skills,
         "suggestions": suggestions
     }
+
 
 @app.post("/trigger-scrape")
 def trigger_scrape():
@@ -140,12 +139,26 @@ def trigger_scrape():
     
     # Push to Node API
     count = 0
+    server_url = os.getenv("SERVER_URL", "http://localhost:5000")
     for job in jobs:
         try:
-            res = requests.post("http://localhost:5000/api/jobs", json=job)
+            res = requests.post(f"{server_url}/api/jobs", json=job)
             if res.status_code == 201:
                 count += 1
         except Exception as e:
             print(f"Failed to push job: {e}")
             
     return {"message": f"Scraped and pushed {count} jobs"}
+
+@app.on_event("startup")
+async def startup_event():
+    import threading
+    def run_initial_scrape():
+        print("Starting initial scrape...")
+        try:
+            trigger_scrape()
+            print("Initial scrape completed.")
+        except Exception as e:
+            print(f"Initial scrape failed: {e}")
+            
+    threading.Thread(target=run_initial_scrape, daemon=True).start()
