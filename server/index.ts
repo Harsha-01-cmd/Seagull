@@ -28,7 +28,6 @@ const redisClient = createClient({
 });
 redisClient.on('error', (err) => console.log('Redis Client Error:', err.message));
 redisClient.connect().catch((err) => console.log('Redis Connect Error:', err.message));
-redisClient.connect().catch((err) => console.log('Redis Connect Error:', err.message));
 
 // Middleware
 app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:3000', credentials: true }));
