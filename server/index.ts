@@ -5,6 +5,8 @@ import cors from 'cors';
 import passport from 'passport';
 import { Strategy as GitHubStrategy } from 'passport-github2';
 import session from 'express-session';
+import { createClient } from 'redis';
+import RedisStore from 'connect-redis';
 import User, { IUser } from './models/User';
 
 // Import Routes
@@ -14,6 +16,10 @@ import userRoutes from './routes/user';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+// Redis Client for Session Store
+const redisClient = createClient({ url: process.env.REDIS_URL || 'redis://localhost:6379' });
+redisClient.connect().catch(console.error);
 
 // Middleware
 app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:3000', credentials: true }));
@@ -28,9 +34,9 @@ mongoose.connect(process.env.MONGO_URI as string, {
     .catch((err: Error) => console.error('MongoDB Config Error:', err));
 
 // Auth Setup
-// Auth Setup
 app.set('trust proxy', 1); // Trust first proxy (Render/Vercel)
 app.use(session({
+    store: new RedisStore({ client: redisClient }),
     secret: process.env.SESSION_SECRET || 'secret_key',
     resave: false,
     saveUninitialized: false,

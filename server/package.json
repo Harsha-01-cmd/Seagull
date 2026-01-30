@@ -17,7 +17,8 @@
     "mongoose": "^7.6.3",
     "passport": "^0.6.0",
     "passport-github2": "^0.1.12",
-    "redis": "^4.6.10"
+    "redis": "^4.6.10",
+    "connect-redis": "^7.1.0"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
