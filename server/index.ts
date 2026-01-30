@@ -17,9 +17,17 @@ import userRoutes from './routes/user';
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Redis Client for Session Store
-const redisClient = createClient({ url: process.env.REDIS_URL || 'redis://localhost:6379' });
-redisClient.connect().catch(console.error);
+// Redis Client for Session Store (Upstash requires TLS)
+const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+const redisClient = createClient({
+    url: redisUrl,
+    socket: {
+        tls: redisUrl.startsWith('rediss://') || redisUrl.includes('upstash.io'),
+        rejectUnauthorized: false
+    }
+});
+redisClient.on('error', (err) => console.log('Redis Client Error:', err.message));
+redisClient.connect().catch((err) => console.log('Redis Connect Error:', err.message));
 
 // Middleware
 app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:3000', credentials: true }));
