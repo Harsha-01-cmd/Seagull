@@ -17,25 +17,71 @@ const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:3000', credentials: true }));
+app.use(express.json());
 
-// ...
+// Database
+mongoose.connect(process.env.MONGO_URI as string, {
+    serverSelectionTimeoutMS: 5000,
+    socketTimeoutMS: 45000,
+} as mongoose.ConnectOptions)
+    .then(() => console.log('MongoDB Connected'))
+    .catch((err: Error) => console.error('MongoDB Config Error:', err));
+
+// Auth Setup
+app.use(session({ secret: 'secret_key', resave: false, saveUninitialized: false }));
+app.use(passport.initialize());
+app.use(passport.session());
+
+passport.serializeUser((user: any, done) => done(null, user.id));
+passport.deserializeUser((id: string, done) => {
+    User.findById(id).then(user => done(null, user));
+});
 
 passport.use(new GitHubStrategy({
     clientID: process.env.GITHUB_CLIENT_ID || 'dummy_id',
     clientSecret: process.env.GITHUB_CLIENT_SECRET || 'dummy_secret',
     callbackURL: `${process.env.SERVER_URL || 'http://localhost:5000'}/auth/github/callback`
 },
-
-    // ...
-
-    app.get('/auth/github/callback',
-        passport.authenticate('github', { failureRedirect: '/login' }),
-        (req: Request, res: Response) => {
-            res.redirect(`${process.env.CLIENT_URL || 'http://localhost:3000'}/dashboard`);
+    async (accessToken: string, refreshToken: string, profile: any, done: Function) => {
+        try {
+            console.log('GitHub Profile Found:', profile.username);
+            let user = await User.findOne({ githubId: profile.id });
+            if (!user) {
+                user = await new User({
+                    githubId: profile.id,
+                    username: profile.username,
+                    displayName: profile.displayName,
+                    avatarUrl: profile.photos[0].value,
+                    email: profile.emails ? profile.emails[0].value : ''
+                }).save();
+            }
+            return done(null, user);
+        } catch (err) {
+            console.error('GitHub Auth Error:', err);
+            return done(err, null);
         }
-    );
+    }
+));
 
-// ...
+// Routes
+app.use('/api/jobs', jobRoutes);
+app.use('/api/applications', applicationRoutes);
+app.use('/api/user', userRoutes);
+app.get('/', (req: Request, res: Response) => { res.send('Job Portal API Running') });
+
+// Auth Routes
+app.get('/auth/github', passport.authenticate('github', { scope: ['user:email'] }));
+
+app.get('/auth/github/callback',
+    passport.authenticate('github', { failureRedirect: '/login' }),
+    (req: Request, res: Response) => {
+        res.redirect(`${process.env.CLIENT_URL || 'http://localhost:3000'}/dashboard`);
+    }
+);
+
+app.get('/auth/user', (req: Request, res: Response) => {
+    res.json(req.user || null);
+});
 
 app.get('/auth/logout', (req: Request, res: Response, next: NextFunction) => {
     req.logout((err) => {
