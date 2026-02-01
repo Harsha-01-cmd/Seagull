@@ -28,7 +28,7 @@ export default function Dashboard() {
 
         try {
             // 1. Parse text via Worker
-            const parseRes = await axios.post('http://localhost:8000/parse-resume', formData, {
+            const parseRes = await axios.post(`${process.env.NEXT_PUBLIC_WORKER_URL || 'http://localhost:8000'}/parse-resume`, formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
             const text = parseRes.data.text;
