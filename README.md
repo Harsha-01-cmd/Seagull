@@ -46,15 +46,17 @@
 
 ## 📸 Screenshots
 
-| Homepage | Jobs Feed |
-|----------|-----------|
-| ![Homepage](https://via.placeholder.com/400x250?text=Homepage) | ![Jobs](https://via.placeholder.com/400x250?text=Jobs+Feed) |
+### 🏠 Homepage
+![Homepage](screenshots/homepage.png)
 
-| ATS Scanner | Dashboard |
-|-------------|-----------|
-| ![ATS](https://via.placeholder.com/400x250?text=ATS+Scanner) | ![Dashboard](https://via.placeholder.com/400x250?text=Dashboard) |
+### 💼 Jobs Feed
+![Jobs Feed](screenshots/jobs.png)
 
-> 💡 *Replace placeholder images with actual screenshots of your app*
+### 📊 Dashboard
+![Dashboard](screenshots/dashboard.png)
+
+### 🔍 ATS Resume Scanner
+![ATS Scanner](screenshots/ats.png)
 
 ---
 
